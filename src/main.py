@@ -1,9 +1,11 @@
 import click
 import joblib
+from sklearn.model_selection import cross_val_score
 
 from data import make_dataset
 from feature import make_features
 from models import make_model
+import pandas as pd
 
 @click.group()
 def cli():
@@ -29,6 +31,19 @@ def train(input_filename, model_dump_filename):
 @click.option("--output_filename", default="data/processed/prediction.csv", help="Output file for predictions")
 def predict(input_filename, model_dump_filename, output_filename):
     model = joblib.load(model_dump_filename)
+
+    # Load the input data
+    df = pd.read_csv(input_filename)
+
+    # Transform the input data
+    X, _ = make_features(df)
+
+    # Make predictions
+    predictions = model.predict(X)
+
+    # Save the predictions
+    df['predictions'] = predictions
+    df.to_csv(output_filename, index=False)
     pass
 
 
@@ -49,8 +64,17 @@ def evaluate(input_filename):
 
 
 def evaluate_model(model, X, y):
-    # Run k-fold cross validation. Print results
-    pass
+    # Define the number of folds for cross-validation
+    n_folds = 5
+
+    # Perform k-fold cross-validation
+    scores = cross_val_score(model, X, y, cv=n_folds)
+
+    # Print the cross-validation results
+    print(f"Cross-validation scores: {scores}")
+    print(f"Mean score: {scores.mean()}")
+    print(f"Standard deviation: {scores.std()}")
+
 
 
 cli.add_command(train)
