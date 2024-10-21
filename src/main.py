@@ -43,7 +43,7 @@ def predict(input_filename, model_dump_filename, output_filename):
     df = pd.read_csv(input_filename)
 
     # Transform the input data
-    X, _ = make_features(df)
+    X, _ = make_features(df,fit=False)
 
     # Make predictions
     predictions = model.predict(X)
