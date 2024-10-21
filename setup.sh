@@ -25,3 +25,4 @@ python -m spacy download fr_core_news_sm
 
 echo "Setup complet. Pour activer l'environnement virtuel, exécutez 'source venv/bin/activate'."
 
+source venv/bin/activate
