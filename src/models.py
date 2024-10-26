@@ -1,21 +1,39 @@
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.dummy import DummyClassifier
 
+def baseline():
+    params = {
+        'strategy': 'most_frequent'
+    }
+    return params, DummyClassifier(strategy='most_frequent')
 
-def make_baseline():
-    return DummyClassifier(strategy='most_frequent')
+def random_forest():
+    params = {
+        'max_depth': 5,
+        'class_weight': 'balanced',
+        'n_estimators': 100
+    }
+    return params,RandomForestClassifier(**params)
 
-def make_random_forest():
-    return RandomForestClassifier(max_depth=5,class_weight='balanced',n_estimators=100)
+def logistic_regression():
+    params = {
+        'max_iter': 1000,
+        'class_weight': 'balanced',
+    }
+    return None, LogisticRegression(**params)
 
-def make_logistic_regression():
-    return LogisticRegression(class_weight='balanced',max_iter=1000)
+def naive_bayes():
 
-def make_naive_bayes():
-    return MultinomialNB()
+    return None, MultinomialNB()
 
-def make_decision_tree():
-    return DecisionTreeClassifier(max_depth=5,class_weight='balanced')
+def decision_tree():
+    params = {
+        'max_depth': 5,
+        'class_weight': 'balanced',
+    }
+    return params,DecisionTreeClassifier(**params)
+
