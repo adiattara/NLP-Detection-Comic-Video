@@ -5,5 +5,8 @@ joblib>=1.1.0
 nltk>=3.6.0
 spacy>=3.2.0
 numpy>=1.21
-
-
+pytest
+mlflow
+python-dotenv
+boto3
+seaborn

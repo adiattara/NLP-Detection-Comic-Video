@@ -7,7 +7,7 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
-def make_features(df,fit = True):
+def make_features(df,vectorizer=None, fit = True):
     # reduction de bruit
     df['video_name'] = df['video_name'].str.replace(f'[{string.punctuation}]', ' ', regex=True)
 
@@ -32,7 +32,9 @@ def make_features(df,fit = True):
         joblib.dump(vectorizer, 'models/vectorized.pkl')
 
     else:
-        vectorizer = joblib.load('models/vectorized.pkl')
+        if vectorizer is None:
+            vectorizer = joblib.load('models/vectorized.pkl')
+
         X = vectorizer.transform(df['video_name'])
 
     y = df['is_comic'].values
