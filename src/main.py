@@ -1,14 +1,40 @@
 import importlib
-
 import click
 import joblib
-from sklearn.metrics import accuracy_score, recall_score, confusion_matrix
-from sklearn.model_selection import cross_val_score
+import numpy as np
 
+from sklearn.metrics import accuracy_score, recall_score, confusion_matrix, classification_report, precision_score, \
+    f1_score
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+
+import mlflow
 from data import make_dataset
 from feature import make_features
-
+import os
+from dotenv import load_dotenv
 import pandas as pd
+from mlflow.models import infer_signature
+
+# Load the environment variables from the .env file
+load_dotenv()
+
+# Récupère les variables nécessaires
+MLFLOW_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI')
+MLFLOW_S3_ENDPOINT_URL = os.getenv('MLFLOW_S3_ENDPOINT_URL')
+EXPERIMENT_NAME = os.getenv('EXPERIMENT_NAME')
+
+# Vérifie que les variables sont bien définies
+if not MLFLOW_TRACKING_URI:
+    raise ValueError("MLFLOW_TRACKING_URI is not set in the environment variables")
+if not MLFLOW_S3_ENDPOINT_URL:
+    raise ValueError("MLFLOW_S3_ENDPOINT_URL is not set in the environment variables")
+if not EXPERIMENT_NAME:
+    raise ValueError("EXPERIMENT_NAME is not set in the environment variables")
+
+MLFLOW_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI')
+
+mlflow.set_experiment(EXPERIMENT_NAME)
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 @click.group()
 def cli():
@@ -26,7 +52,8 @@ def train(input_filename, model_dump_filename, model_function):
     df = make_dataset(input_filename)
     X, y = make_features(df)
 
-    model = model_func()
+    _,model = model_func()
+
     model.fit(X, y)
 
     return joblib.dump(model, model_dump_filename)
@@ -54,6 +81,9 @@ def predict(input_filename, model_dump_filename, output_filename):
     pass
 
 
+
+
+
 @click.command()
 @click.option("--input_filename", default="data/raw/train.csv", help="File training data")
 @click.option("--model_function", default="make_logistic_regression", help="look models.py for model functions")
@@ -64,26 +94,62 @@ def evaluate(input_filename,model_function):
     df = make_dataset(input_filename)
 
     # Make features (tokenization, lowercase, stopwords, stemming...)
-    X, y = make_features(df, fit=False)
+    X, y = make_features(df)
 
     # Object with .fit, .predict methods
-    model = model_func()
+    param,model = model_func()
     # Run k-fold cross validation. Print results
-    return evaluate_model(model, X, y)
 
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=13)
+    # Initialize an empty list to store f1-score for each fold
+    f1 = []
+    run_name = f"{EXPERIMENT_NAME} / {model_function}"
+    signature = infer_signature(X)
 
-def evaluate_model(model, X, y):
+    # Start a new MLflow run
+    with mlflow.start_run(run_name=run_name) as run:
+        # Set the tags for the run
 
-    # Define the number of folds for cross-validation
-    n_folds = 5
+        # Log the model parameters to the run
 
-    # Perform k-fold cross-validation
-    scores = cross_val_score(model, X, y, cv=n_folds)
+        for fold, (train_index, test_index) in enumerate(skf.split(X, y)):
+            x_train_fold, x_test_fold = X[train_index], X[test_index]
+            y_train_fold, y_test_fold = y[train_index], y[test_index]
 
-    # Print the cross-validation results
-    print(f"Cross-validation scores: {scores}")
-    print(f"Mean score: {scores.mean()}")
-    print(f"Standard deviation: {scores.std()}")
+            # Fit the model on the training data
+            model.fit(x_train_fold, y_train_fold)
+
+            # Predict the labels on the test data
+            y_pred_fold = model.predict(x_test_fold)
+
+            mlflow.log_param('param', param)
+            mlflow.log_param('model_name', model_function)
+            # Compute and log the evaluation metrics
+            cr = classification_report(y_test_fold, y_pred_fold, output_dict=True)
+            recall_0 = cr['0']['recall']
+            f1_score_0 = cr['0']['f1-score']
+            recall_1 = cr['1']['recall']
+            f1_score_1 = cr['1']['f1-score']
+            acc = accuracy_score(y_test_fold, y_pred_fold)
+            precision = precision_score(y_test_fold, y_pred_fold, average='micro')
+            mlflow.log_metric("accuracy_score", acc)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall_0", recall_0)
+            mlflow.log_metric("f1_score_0", f1_score_0)
+            mlflow.log_metric("recall_1", recall_1)
+            mlflow.log_metric("f1_score_1", f1_score_1)
+            f1.append(f1_score(y_test_fold, y_pred_fold))
+            mlflow.log_metric("val_f1_fold", f1_score(y_test_fold, y_pred_fold))
+
+        mlflow.log_metric("val_f1_score", np.mean(f1))
+        model.fit(X, y)
+
+        mlflow.sklearn.log_model(model, model_function, signature=signature)
+        mlflow.log_artifact( 'models/vectorized.pkl')
+        model_uri = f"runs:/{run.info.run_id}/model"
+        print(model_uri)
+        mlflow.register_model(model_uri, model_function)
+
 
 
 
