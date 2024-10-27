@@ -10,12 +10,10 @@ from data_model import DataInput
 import pandas as pd
 import uvicorn
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 mlflow_tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-if not mlflow_tracking_uri:
-    mlflow_tracking_uri = "http://localhost:5000"
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-
 
 def get_latest_production_model():
     # Récupérer tous les modèles enregistrés dans le Model Registry
