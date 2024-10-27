@@ -10,3 +10,4 @@ boto3
 fastapi
 joblib
 uvicorn
+python-dotenv
