@@ -5,11 +5,23 @@ services:
     image: nlp-fast-api:latest
     container_name: nlp-api-service
     ports:
-      - "8000:8000"
+      - 8000
     networks:
       - api-network
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-
+  nginx_server:
+    image: nginx:latest
+    container_name: nlp-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - api-network
+    depends_on:
+      - fast_api_server
+    restart: always
+    command: ["nginx-debug", "-g", "daemon off;"]
 
 networks:
   api-network:
